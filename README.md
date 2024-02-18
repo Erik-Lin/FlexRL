@@ -49,3 +49,8 @@ The full text of the MIT License can be found in the code repository. We encoura
 
 详细的MIT许可证全文可以在代码仓库中找到。我们鼓励和欢迎使用FlexRL框架来推动技术的进步和社区的成长。
 
+## 联系方式
+email: erik_lin@163.com
+
+微信公众号：
+![扫码_搜索联合传播样式-标准色版](https://github.com/Erik-Lin/FlexRL/assets/93082050/78d26b43-bc7a-4bcf-80a1-19c32f4452eb)
