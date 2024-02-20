@@ -1,0 +1,19 @@
+algo: "sac"
+env: "mazeEnv"
+actor_lr : 5e-3
+critic_lr : 1e-2
+alpha_lr : 1e-2
+device: "cpu"
+train: True  
+episodes: 200
+test_episodes: 10
+update_interval: 20
+max_steps: 200
+batch_size: 32
+seed: 0
+gamma : 0.98
+tau : 0.005
+render: false
+capacity: 5000
+target_entropy : -1
+hidden_dim : 256

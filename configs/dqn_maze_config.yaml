@@ -1,0 +1,12 @@
+algo: "dqn"
+env: "mazeEnv"
+train: True  
+episodes: 200
+test_episodes: 10
+max_steps: 200
+batch_size: 32
+discount: 0.99
+seed: 0
+device: "cpu"
+render: false
+capacity: 5000

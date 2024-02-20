@@ -1,0 +1,9 @@
+torch
+numpy
+gymnasium
+pettingzoo
+matplotlib
+tqdm
+tensorboardX
+PyYAML
+pandas
