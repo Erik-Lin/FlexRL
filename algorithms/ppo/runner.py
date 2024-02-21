@@ -9,7 +9,7 @@ def smooth(input, window_size=10):
 	return smoothed_input
 
 def ppo_runner(env,args):
-    state_dim = env.observation_space.n
+    state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
     agent = Agent(state_dim,action_dim,args)
     train_path = "./train_results/ppo/"
@@ -29,7 +29,7 @@ def train(env,agent,args):
     losses_critic = []
     episodes = int(args['episodes'])
     for ep in tqdm(range(episodes)):
-        state = env.reset()
+        state,info = env.reset()
         if args['render']:
             env.render()
         done = False
@@ -38,7 +38,8 @@ def train(env,agent,args):
         loss_c = 0
         while not done:
             action, action_prob = agent.select_action(state)
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
             if args['render']:
                 env.render()
             agent.memory(state, action, action_prob, reward, next_state)
@@ -106,8 +107,7 @@ def test(env,agent,args):
     episodes = int(args['test_episodes'])
     for ep in tqdm(range(episodes)):
         state = env.reset()
-        if args['render']:
-            env.render()
+
         done = False
         total_rewards = 0
         while not done:

@@ -3,11 +3,7 @@ from algorithms.dqn.runner import dqn_runner
 from algorithms.ddpg.runner import ddpg_runner
 from algorithms.ppo.runner import ppo_runner
 from algorithms.sac.runner import sac_runner
-
-from environments.maze_env import mazeEnv
-from environments.chip_env import chipEnv
-from environments.medication_env import medicationEnv
-
+import gymnasium as gym
 import yaml
 
 def load_config(yaml_file_path):
@@ -22,14 +18,7 @@ if __name__ == '__main__':
     args = load_config('./configs/ppo_maze_config.yaml')
     # args = load_config('./configs/sac_maze_config.yaml')
 
-    if args["env"] == "mazeEnv":
-        env = mazeEnv(args)  # 创建迷宫环境
-    elif args["env"] == "medicationEnv":
-        env = medicationEnv(args)
-    elif args["env"] == "chipEnv":
-        env = chipEnv(args)
-    else:
-        raise ValueError("请指定正确的环境")
+    env = gym.make('CartPole-v1',render_mode='human')
 
     if args["algo"] == "dqn":
         dqn_runner(env, args)

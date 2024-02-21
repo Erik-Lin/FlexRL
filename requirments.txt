@@ -1,6 +1,8 @@
 torch
 numpy
 gymnasium
+gymnasium[classic-control]
+pygame
 pettingzoo
 matplotlib
 tqdm
