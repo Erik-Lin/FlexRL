@@ -6,6 +6,5 @@ pygame
 pettingzoo
 matplotlib
 tqdm
-tensorboardX
 PyYAML
 pandas

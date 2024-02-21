@@ -30,8 +30,6 @@ def train(env,agent,args):
     episodes = int(args['episodes'])
     for ep in tqdm(range(episodes)):
         state,info = env.reset()
-        if args['render']:
-            env.render()
         done = False
         totral_reward = 0
         loss_a = 0
@@ -106,14 +104,15 @@ def test(env,agent,args):
     rewards = []
     episodes = int(args['test_episodes'])
     for ep in tqdm(range(episodes)):
-        state = env.reset()
+        state,info = env.reset()
 
         done = False
         total_rewards = 0
         while not done:
             action, action_prob = agent.select_action(state)
-            next_state, reward, done, _ = env.step(action)
-            if args['render']:
+            next_state, reward, terminated,truncted, info = env.step(action)
+            done = terminated or truncted
+            if args['render'] == True:
                 env.render()
             state = next_state
             total_rewards += reward

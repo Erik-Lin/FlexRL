@@ -1,14 +1,14 @@
 algo: "ppo"
 device: "cpu"
 draw_show : False
-train: True  
+train: False  
 episodes: 200
 test_episodes: 10
 max_steps: 200
 batch_size: 32
 hidden_dim : 128
 seed: 0
-render: True
+render: False
 capacity: 5000
 K_epochs : 10               # update policy for K epochs in one PPO update
 clip_param : 0.2          # clip parameter for PPO
