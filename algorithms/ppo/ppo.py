@@ -1,169 +1,105 @@
 import torch
 import torch.nn as nn
-from torch.distributions import MultivariateNormal
-from torch.distributions import Categorical
-from algorithms.ppo.model import ActorCritic,device
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.distributions import Normal, Categorical
+from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
+from algorithms.ppo.model import Actor, Critic
+from algorithms.ppo.utils import MemoryBuffer
 
-
-################################## PPO Policy ##################################
-class RolloutBuffer:
-    def __init__(self):
-        self.actions = []
-        self.states = []
-        self.logprobs = []
-        self.rewards = []
-        self.state_values = []
-        self.is_terminals = []
-    
-    def clear(self):
-        del self.actions[:]
-        del self.states[:]
-        del self.logprobs[:]
-        del self.rewards[:]
-        del self.state_values[:]
-        del self.is_terminals[:]
-
-
-class PPO:
-    def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std_init=0.6):
-
-        self.has_continuous_action_space = has_continuous_action_space
-
-        if has_continuous_action_space:
-            self.action_std = action_std_init
-
-        self.gamma = gamma
-        self.eps_clip = eps_clip
-        self.K_epochs = K_epochs
-        
-        self.buffer = RolloutBuffer()
-
-        self.policy = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
-        self.optimizer = torch.optim.Adam([
-                        {'params': self.policy.actor.parameters(), 'lr': lr_actor},
-                        {'params': self.policy.critic.parameters(), 'lr': lr_critic}
-                    ])
-
-        self.policy_old = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
-        self.policy_old.load_state_dict(self.policy.state_dict())
-        
-        self.MseLoss = nn.MSELoss()
-        self.last_loss = 0.0  # 添加一个属性用于存储最后一次的损失值
-
-    def set_action_std(self, new_action_std):
-        if self.has_continuous_action_space:
-            self.action_std = new_action_std
-            self.policy.set_action_std(new_action_std)
-            self.policy_old.set_action_std(new_action_std)
-        else:
-            print("--------------------------------------------------------------------------------------------")
-            print("WARNING : Calling PPO::set_action_std() on discrete action space policy")
-            print("--------------------------------------------------------------------------------------------")
-
-    def decay_action_std(self, action_std_decay_rate, min_action_std):
-        print("--------------------------------------------------------------------------------------------")
-        if self.has_continuous_action_space:
-            self.action_std = self.action_std - action_std_decay_rate
-            self.action_std = round(self.action_std, 4)
-            if (self.action_std <= min_action_std):
-                self.action_std = min_action_std
-                print("setting actor output action_std to min_action_std : ", self.action_std)
-            else:
-                print("setting actor output action_std to : ", self.action_std)
-            self.set_action_std(self.action_std)
-
-        else:
-            print("WARNING : Calling PPO::decay_action_std() on discrete action space policy")
-        print("--------------------------------------------------------------------------------------------")
+class Agent():
+    def __init__(self,state_dim,action_dim,args):
+        super(Agent, self).__init__()
+        self.actor_net = Actor(state_dim,action_dim,int(args['hidden_dim']))
+        self.critic_net = Critic(state_dim,int(args['hidden_dim']))
+        self.buffer = MemoryBuffer(int(args['capacity']))
+        self.counter = 0
+        self.training_step = 0
+        self.gamma = args['gamma']
+        self.clip_param = args['clip_param']
+        self.max_grad_norm = args['max_grad_norm']
+        self.ppo_update_time = args['ppo_update_time']
+        self.batch_size = args['batch_size']
+        self.actor_optimizer = optim.Adam(self.actor_net.parameters(), args['lr_actor'])
+        self.critic_net_optimizer = optim.Adam(self.critic_net.parameters(), args['lr_critic'])
 
     def select_action(self, state):
-        # if self.has_continuous_action_space:
-        #     with torch.no_grad():
-        #         state = torch.FloatTensor(state).to(device)
-        #         action, action_logprob, state_val = self.policy_old.act(state)
+        state = torch.from_numpy(state).float().unsqueeze(0)
+        with torch.no_grad():
+            action_prob = self.actor_net(state)
+        c = Categorical(action_prob)
+        action = c.sample()
+        return action.item(), action_prob[:,action.item()].item()
 
-        #     self.buffer.states.append(state)
-        #     self.buffer.actions.append(action)
-        #     self.buffer.logprobs.append(action_logprob)
-        #     self.buffer.state_values.append(state_val)
+    def get_value(self, state):
+        state = torch.from_numpy(state)
+        with torch.no_grad():
+            value = self.critic_net(state)
+        return value.item()
 
-        #     return action.detach().cpu().numpy().flatten()
-        # else:
-            with torch.no_grad():
-                state = torch.FloatTensor(state).to(device)
-                # action,action_logprob,state_val = self.policy_old.act(state)
-                action_probs, state_val = self.policy_old.act(state)
-            
-            # self.buffer.states.append(state)
-            # self.buffer.actions.append(action)
-            # self.buffer.logprobs.append(action_logprob)
-            # self.buffer.state_values.append(state_val)
+    def save_models(self):
+        torch.save(self.actor_net.state_dict(), './train_results/ppo/actor.pt')
+        torch.save(self.critic_net.state_dict(), './train_results/ppo/critic.pt')
 
-            # return action.item()
-            return action_probs,state_val
+    def load_models(self):
+        self.actor_net.load_state_dict(torch.load('./train_results/ppo/actor.pt'))
+        self.critic_net.load_state_dict(torch.load('./train_results/ppo/critic.pt'))
+
+    def memory(self, state, action, a_log_prob,reward, next_state):
+        self.buffer.add(state, action, a_log_prob,reward, next_state)
 
     def update(self):
-        # Monte Carlo estimate of returns
-        rewards = []
-        discounted_reward = 0
-        for reward, is_terminal in zip(reversed(self.buffer.rewards), reversed(self.buffer.is_terminals)):
-            if is_terminal:
-                discounted_reward = 0
-            discounted_reward = reward + (self.gamma * discounted_reward)
-            rewards.insert(0, discounted_reward)
-            
-        # Normalizing the rewards
-        rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
-        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-7)
+        s_arr, a_arr,a_log_arr, r_arr, s1_arr = self.buffer.getAll()
+        states = torch.tensor([state for state in s_arr], dtype=torch.float)
+        actions = torch.tensor([action for action in a_arr], dtype=torch.int64).view(-1, 1)
+        rewards = torch.tensor([reward for reward in r_arr], dtype=torch.float).view(-1, 1)
+        old_action_log_probs = torch.tensor([a_log_prob for a_log_prob in a_log_arr], dtype=torch.float).view(-1, 1)
+        next_states = torch.tensor([state for state in s1_arr], dtype=torch.float)
+        value_loss_mean = 0.
+        action_loss_mean = 0.
+        R = 0
+        Gt = []
+        # print(rewards)
+        rewards_flipped = rewards.flip(dims=[0])  # 使用 flip 函数来反转张量
+        for r in rewards_flipped:
+            # print("r:{}".format(r))
+            R = r.item() + self.gamma * R  # `.item()` 可以从标量张量中获得Python数值
+            Gt.insert(0, R)
+        Gt = torch.tensor(Gt, dtype=torch.float)
 
-        # convert list to tensor
-        old_states_tensors = [torch.from_numpy(state) for state in self.buffer.states]
-        old_states = torch.squeeze(torch.stack(old_states_tensors, dim=0)).detach().to(device)
-        old_actions = torch.squeeze(torch.stack(self.buffer.actions, dim=0)).detach().to(device)
-        old_logprobs = torch.squeeze(torch.stack(self.buffer.logprobs, dim=0)).detach().to(device)
-        old_state_values = torch.squeeze(torch.stack(self.buffer.state_values, dim=0)).detach().to(device)
+        #print("The agent is updateing....")
+        for i in range(self.ppo_update_time):
+            for index in BatchSampler(SubsetRandomSampler(range(self.buffer.len)), self.batch_size, False):
+                #with torch.no_grad():
+                Gt_index = Gt[index].view(-1, 1)
+                V = self.critic_net(states[index])
+                delta = Gt_index - V
+                advantage = delta.detach()
+                # epoch iteration, PPO core!!!
+                action_prob = self.actor_net(states[index]).gather(1, actions[index]) # new policy
 
-        # calculate advantages
-        advantages = rewards.detach() - old_state_values.detach()
+                ratio = (action_prob/old_action_log_probs[index])
+                surr1 = ratio * advantage
+                surr2 = torch.clamp(ratio, 1 - self.clip_param, 1 + self.clip_param) * advantage
 
-        # Optimize policy for K epochs
-        for _ in range(self.K_epochs):
+                # update actor network
+                action_loss = -torch.min(surr1, surr2).mean()  # MAX->MIN desent
+                # print("action_loss : ",action_loss)
+                action_loss_mean = (action_loss_mean + action_loss.item())/2
+                self.actor_optimizer.zero_grad()
+                action_loss.backward()
+                nn.utils.clip_grad_norm_(self.actor_net.parameters(), self.max_grad_norm)
+                self.actor_optimizer.step()
 
-            # Evaluating old actions and values
-            logprobs, state_values, dist_entropy = self.policy.evaluate(old_states, old_actions)
+                #update critic network
+                value_loss = F.mse_loss(Gt_index, V)
+                # print("value_loss : ",value_loss)
+                value_loss_mean = (value_loss_mean + value_loss.item())/2
+                self.critic_net_optimizer.zero_grad()
+                value_loss.backward()
+                nn.utils.clip_grad_norm_(self.critic_net.parameters(), self.max_grad_norm)
+                self.critic_net_optimizer.step()
+                self.training_step += 1
 
-            # match state_values tensor dimensions with rewards tensor
-            state_values = torch.squeeze(state_values)
-            
-            # Finding the ratio (pi_theta / pi_theta__old)
-            ratios = torch.exp(logprobs - old_logprobs.detach())
-
-            # Finding Surrogate Loss  
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages
-
-            # final loss of clipped objective PPO
-            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards) - 0.01 * dist_entropy
-            self.last_loss = loss.mean().item()
-            
-            # take gradient step
-            self.optimizer.zero_grad()
-            loss.mean().backward()
-            self.optimizer.step()
-            
-        # Copy new weights into old policy
-        self.policy_old.load_state_dict(self.policy.state_dict())
-
-        # clear buffer
         self.buffer.clear()
-    
-    def save(self, checkpoint_path):
-        torch.save(self.policy_old.state_dict(), checkpoint_path)
-   
-    def load(self, checkpoint_path):
-        self.policy_old.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
-        self.policy.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
-
-    def get_last_loss(self):
-        # 返回最后一次计算的损失值
-        return self.last_loss
+        return action_loss_mean, value_loss_mean

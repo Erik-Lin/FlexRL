@@ -28,18 +28,30 @@ def sac_runner(env, args):
         test(env,agent,args)
 
 def train(env,agent,args):
-    num_episodes = 200
-    buffer_size = 1000
-    minimal_size = 100
-    batch_size = 16
-
     random.seed(args['seed'])
     np.random.seed(args['seed'])
     torch.manual_seed(args['seed'])
-    replay_buffer = ReplayBuffer(buffer_size)
-    return_list = train_off_policy_agent(env, agent, num_episodes,
-                                                  replay_buffer, minimal_size,
-                                                  batch_size)
+    replay_buffer = ReplayBuffer(int(args['capacity']))
+    return_list = []
+    for i_episode in range(int(args['episodes'])):
+        episode_return = 0
+        state = env.reset()
+        # state = dic2state(state)
+        done = False
+        while not done:
+            action = agent.take_action(state)
+            next_state, reward, done, _ = env.step(action)
+            # next_state = dic2state(next_state)
+            replay_buffer.add(state, action, reward, next_state, done)
+            state = next_state
+            episode_return += reward
+            if replay_buffer.size() > int(args['minimal_size']):
+                b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(int(args['batch_size']))
+                transition_dict = {'states': b_s, 'actions': b_a, 'next_states': b_ns, 'rewards': b_r, 'dones': b_d}
+                agent.update(transition_dict)
+        # print(state)
+        return_list.append(episode_return)
+
     agent.save_models("./train_results/sac/sac_model_{}_".format(args['episodes']))
     episodes_list = list(range(len(return_list)))
     mv_return = moving_average(return_list, 9)
@@ -50,7 +62,34 @@ def train(env,agent,args):
     plt.savefig('./train_results/sac/{}_mv_rewards_plot_on_{}.png'.format(args['episodes'],args['env']))
     plt.pause(0.01)
     plt.clf()
-
+    print("Completed the Train")
+    
 def test(env,agent,args):
-    pass
+    random.seed(args['seed'])
+    np.random.seed(args['seed'])
+    torch.manual_seed(args['seed'])
+    return_list = []
+    for i_episode in range(int(args['test_episodes'])):
+        episode_return = 0
+        state = env.reset()
+        # state = dic2state(state)
+        done = False
+        while not done:
+            action = agent.take_action(state)
+            next_state, reward, done, _ = env.step(action)
+            # next_state = dic2state(next_state)
+            state = next_state
+            episode_return += reward
+        # print(state)
+        return_list.append(episode_return)
 
+    episodes_list = list(range(len(return_list)))
+    mv_return = moving_average(return_list, 9)
+    plt.plot(episodes_list, mv_return)
+    plt.xlabel('Episodes')
+    plt.ylabel('Returns')
+    plt.title('SAC on {}'.format(args['env']))
+    plt.savefig('./test_results/sac/test_{}_rewards_plot_on_{}.png'.format(args['episodes'],args['env']))
+    plt.pause(0.01)
+    plt.clf()
+    print("Completed the Test")

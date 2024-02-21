@@ -19,8 +19,8 @@ def load_config(yaml_file_path):
 if __name__ == '__main__':
     # args = load_config('./configs/dqn_maze_config.yaml')
     # args = load_config('./configs/ddpg_maze_config.yaml')
-    # args = load_config('./configs/ppo_maze_config.yaml')
-    args = load_config('./configs/sac_maze_config.yaml')
+    args = load_config('./configs/ppo_maze_config.yaml')
+    # args = load_config('./configs/sac_maze_config.yaml')
 
     if args["env"] == "mazeEnv":
         env = mazeEnv(args)  # 创建迷宫环境

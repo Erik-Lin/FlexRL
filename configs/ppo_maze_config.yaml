@@ -1,18 +1,20 @@
 algo: "ppo"
 env: "mazeEnv"
-train: True  
+device: "cpu"
+draw_show : False
+train: False  
 episodes: 200
 test_episodes: 10
-update_interval: 20
 max_steps: 200
 batch_size: 32
-discount: 0.99
+hidden_dim : 128
 seed: 0
-device: "cpu"
 render: false
 capacity: 5000
 K_epochs : 10               # update policy for K epochs in one PPO update
-eps_clip : 0.2          # clip parameter for PPO
+clip_param : 0.2          # clip parameter for PPO
+max_grad_norm: 0.5
+ppo_update_time: 10
 gamma : 0.99            # discount factor
 lr_actor : 0.0003       # learning rate for actor network
 lr_critic : 0.001       # learning rate for critic network
