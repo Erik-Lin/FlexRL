@@ -1,4 +1,4 @@
-# FlexRL: A Flexible Reinforcement Learning Framework Based on Pytorch
+# FlexRL: A Flexible Automated Reinforcement Learning Framework Based on Pytorch
 
 Welcome to FlexRL, a PyTorch-based reinforcement learning framework designed to empower researchers and enthusiasts in the field of artificial intelligence. The goal of creating FlexRL is to provide an accessible, easy-to-use, and highly extensible framework for single-agent reinforcement learning algorithms that facilitates quick development and testing of these algorithms, yielding rapid results in both academic and industrial settings.
 
@@ -26,7 +26,7 @@ As stipulated by the MIT License, using our code does not make you liable for an
 
 email：erik_lin@163.com
 
-# FlexRL：基于Pytorch的一个灵活的强化学习框架
+# FlexRL：基于Pytorch的一个灵活的自动化的强化学习框架
 
 欢迎来到FlexRL，这是一个基于PyTorch的强化学习框架，旨在为人工智能领域的研究者和爱好者赋能。我们创建FlexRL的目标是提供一个入门门槛低、上手快、拓展性强的单智能体强化学习算法框架，便于开发和测试单智能体强化学习算法，在学术和工业上快速产出成果。
 
