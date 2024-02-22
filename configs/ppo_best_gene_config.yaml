@@ -1,0 +1,10 @@
+algo: ppo
+hidden_dim: 472
+actor_lr: 0.006529073784661808
+critic_lr: 0.005382090852827776
+gamma: 0.9150231188351141
+tau: 0.267946183065806
+episodes: 48
+capacity: 32053
+batch_size: 160
+seed: 7

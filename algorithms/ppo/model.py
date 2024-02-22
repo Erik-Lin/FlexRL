@@ -18,7 +18,6 @@ class Actor(nn.Module):
         action_prob = F.softmax(self.action_head(x), dim=1)
         return action_prob
 
-
 class Critic(nn.Module):
     def __init__(self,state_dim,hidden_dim):
         super(Critic, self).__init__()

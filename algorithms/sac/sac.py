@@ -1,16 +1,20 @@
-from .model import PolicyNet, QValueNet
-import torch.nn.functional as F
-import torch.optim as optim
+from algorithms.sac.model import PolicyNet, QValueNet
 import torch
-import torch.nn as nn
-import os
-from torch.distributions import Normal
+import torch.nn.functional as F
 import numpy as np
+import matplotlib.pyplot as plt
 
-
-class SAC:
+class Agent:
     def __init__(self, state_dim, hidden_dim, action_dim, actor_lr, critic_lr,
                  alpha_lr, target_entropy, tau, gamma, device):
+        self.hidden_dim = hidden_dim
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
+        self.alpha_lr = alpha_lr
+        self.target_entropy = target_entropy  # 目标熵的大小
+        self.gamma = gamma
+        self.tau = tau
+
         # 策略网络
         self.actor = PolicyNet(state_dim, hidden_dim, action_dim).to(device)
         # 第一个Q网络
@@ -35,12 +39,19 @@ class SAC:
         self.log_alpha.requires_grad = True  # 可以对alpha求梯度
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha],
                                                     lr=alpha_lr)
-        self.target_entropy = target_entropy  # 目标熵的大小
-        self.gamma = gamma
-        self.tau = tau
+        
         self.device = device
+    def save_model(self):
+        torch.save(self.actor.state_dict(), './train_results/sac/sac_actor.pt')
+        torch.save(self.critic_1.state_dict(), './train_results/sac/sac_critic_1.pt')
+        torch.save(self.critic_2.state_dict(), './train_results/sac/sac_critic_2.pt')
 
-    def take_action(self, state):
+    def load_model(self):
+        self.actor.load_state_dict(torch.load('./train_results/sac/sac_actor.pt'))
+        self.critic_1.load_state_dict(torch.load('./train_results/sac/sac_critic_1.pt'))
+        self.critic_2.load_state_dict(torch.load('./train_results/sac/sac_critic_2.pt'))
+
+    def select_action(self, state):
         state = torch.tensor([state], dtype=torch.float).to(self.device)
         probs = self.actor(state)
         action_dist = torch.distributions.Categorical(probs)
@@ -118,15 +129,3 @@ class SAC:
 
         self.soft_update(self.critic_1, self.target_critic_1)
         self.soft_update(self.critic_2, self.target_critic_2)
-
-    def save_models(self,model_path):
-        torch.save(self.actor.state_dict(), model_path + '_actor.pt')
-        torch.save(self.critic_1.state_dict(), model_path + '_critic_1.pt')
-        torch.save(self.critic_2.state_dict(), model_path + '_critic_2.pt')
-        print('Models saved successfully')
-    
-    def load_models(self,model_path):
-        self.actor.load_state_dict(torch.load(model_path + '_actor.pt'))
-        self.critic_1.load_state_dict(torch.load(model_path + '_critic_1.pt'))
-        self.critic_2.load_state_dict(torch.load(model_path + '_critic_2.pt'))
-        print('Models loaded successfully')

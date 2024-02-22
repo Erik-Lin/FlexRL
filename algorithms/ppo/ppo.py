@@ -8,20 +8,23 @@ from algorithms.ppo.model import Actor, Critic
 from algorithms.ppo.utils import MemoryBuffer
 
 class Agent():
-    def __init__(self,state_dim,action_dim,args):
+    #state_dim, self.hidden_dim, action_dim, self.actor_lr, self.critic_lr, self.tau, self.gamma,self.capacity,self.device
+    def __init__(self,state_dim,hidden_dim,action_dim,actor_lr,critic_lr,tau,gamma,capacity,batch_size,device):
         super(Agent, self).__init__()
-        self.actor_net = Actor(state_dim,action_dim,int(args['hidden_dim']))
-        self.critic_net = Critic(state_dim,int(args['hidden_dim']))
-        self.buffer = MemoryBuffer(int(args['capacity']))
+        self.actor_net = Actor(state_dim,action_dim,hidden_dim)
+        self.critic_net = Critic(state_dim,hidden_dim)
+        self.buffer = MemoryBuffer(capacity)
         self.counter = 0
         self.training_step = 0
-        self.gamma = args['gamma']
-        self.clip_param = args['clip_param']
-        self.max_grad_norm = args['max_grad_norm']
-        self.ppo_update_time = args['ppo_update_time']
-        self.batch_size = args['batch_size']
-        self.actor_optimizer = optim.Adam(self.actor_net.parameters(), args['lr_actor'])
-        self.critic_net_optimizer = optim.Adam(self.critic_net.parameters(), args['lr_critic'])
+        self.gamma = gamma
+        self.clip_param = 0.2
+        self.max_grad_norm = 0.5
+        self.ppo_update_time = 10
+        self.batch_size = batch_size
+        self.tau = tau
+        self.device =device
+        self.actor_optimizer = optim.Adam(self.actor_net.parameters(), actor_lr)
+        self.critic_net_optimizer = optim.Adam(self.critic_net.parameters(), critic_lr)
 
     def select_action(self, state):
         state = torch.from_numpy(state).float().unsqueeze(0)
@@ -37,11 +40,11 @@ class Agent():
             value = self.critic_net(state)
         return value.item()
 
-    def save_models(self):
+    def save_model(self):
         torch.save(self.actor_net.state_dict(), './train_results/ppo/actor.pt')
         torch.save(self.critic_net.state_dict(), './train_results/ppo/critic.pt')
 
-    def load_models(self):
+    def load_model(self):
         self.actor_net.load_state_dict(torch.load('./train_results/ppo/actor.pt'))
         self.critic_net.load_state_dict(torch.load('./train_results/ppo/critic.pt'))
 

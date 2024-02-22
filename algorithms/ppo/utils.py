@@ -11,6 +11,11 @@ def ensure_directory_exists(path):
 		print(f"Directory created: {path}")
 	else:
 		print(f"Directory already exists: {path}")
+		
+def smooth(input, window_size=10):
+	# 使用窗口大小为 window_size 的移动平均平滑奖励
+	smoothed_input = np.convolve(input, np.ones(window_size)/window_size, mode='valid')
+	return smoothed_input
 
 class MemoryBuffer(object):
 	def __init__(self, size):
