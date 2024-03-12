@@ -5,7 +5,7 @@ import random
 import torch
 from algorithms.ppo.ppo import Agent
 from algorithms.ppo import utils
-
+import time
 def ppo_gene_test_runner(env,config):
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
@@ -29,8 +29,9 @@ def ppo_gene_test_runner(env,config):
             if done :
                 break
         rewards.append(total_rewards)
-    
-    plt.plot(rewards)
+    rewards = rewards / 5 - 100
+    smoothed_rewards = utils.smooth(rewards,50)
+    plt.plot(smoothed_rewards)
     plt.xlabel('Episode')
     plt.ylabel('Total Reward')
     plt.title('PPO Reward over Episodes')
@@ -108,11 +109,13 @@ class ppoRunner(object):
             losses_critic.append(loss_c)
                 
         self.agent.save_model()
-        plt.plot(rewards)
+        rewards = [each/5 - 100 for each in rewards]
+        smoothed_rewards = utils.smooth(rewards,50)
+        plt.plot(smoothed_rewards)
         plt.xlabel('Episode')
         plt.ylabel('Total Reward')
         plt.title('Reward over Episodes')
-        plt.savefig('./train_results/ppo/smoothed_reward_plot_{}.png'.format(self.episodes))  # Save the plot as an image
+        plt.savefig('./train_results/ppo/smoothed_reward_plot_{}.png'.format(time.time()%2000))  # Save the plot as an image
         plt.clf()  # Clear the plot for the next update
 
         # smoothed_actor_loss = utils.smooth(losses_actor)
