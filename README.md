@@ -15,7 +15,7 @@ Whether you're engaged in academic research, committed to industry-specific appl
 
 ## Usage Notice:
 
-The framework code is contributed by **Intelligent Decision Studio**. FlexRL is licensed under the MIT License, meaning you are free to use, copy, modify, merge, publish, distribute, sublicense, and even use it for commercial purposes, provided you adhere to the following conditions:
+The framework code is contributed by **Shanli Lin**. FlexRL is licensed under the MIT License, meaning you are free to use, copy, modify, merge, publish, distribute, sublicense, and even use it for commercial purposes, provided you adhere to the following conditions:
 
 - **Copyright Notice**: You must include the original copyright notice and permission notice in your product or project.
 - **No Warranty**: This software is provided "as is", without any kind of express or implied warranty. The risk arising from the use of our code is entirely with the user.
